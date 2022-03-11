@@ -9,20 +9,17 @@ import {
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { useEffect, useState } from "react";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-} from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 import styles from "../assets/style/singUp.module.css";
 import logo from "../assets/img/logo.png";
 import { useNavigate } from "react-router-dom";
+import { createUser, userExists } from "../database";
 
 function SingnUp() {
   const [isRetrievingUser, setIsRetrievingUser] = useState(true);
   const auth = getAuth();
-  onAuthStateChanged(auth, () => {
+  auth.onAuthStateChanged(() => {
     setIsRetrievingUser(false);
   });
 
@@ -47,25 +44,34 @@ function SingnUp() {
         return "Email inválido";
       case "auth/weak-password":
         return "Escolha uma senha mais segura";
+      case "auth/email-already-in-use":
+        return "Este email já está sendo utilizado";
       default:
         return "Houve um erro ao tentar se registrar. Tente novamente mais tarde";
     }
   }
 
-  function validateUsername() {
+  function setErrorStates(errorMessage) {
+    setIsSigningUp(false);
+    setErrorMessage(errorMessage);
+  }
+
+  async function usernameIsValid() {
     if (username.length < 3) {
-      setIsSigningUp(false);
-      setErrorMessage("Nome de usuário muito pequeno");
+      setErrorStates("Nome de usuário muito pequeno");
       return false;
     }
-    //TODO: impedir que usuários possuam mesmo nome
+    let userAlreadyExists = await userExists(username);
+    if (userAlreadyExists) {
+      setErrorStates("Nome de usuário em uso");
+      return false;
+    }
 
     return true;
   }
-  function validatePassword() {
+  function passwordIsValid() {
     if (password !== confirmPassword) {
-      setIsSigningUp(false);
-      setErrorMessage("As senhas não coincidem");
+      setErrorStates("As senhas não coincidem");
       return false;
     }
 
@@ -76,20 +82,30 @@ function SingnUp() {
     event.preventDefault();
     setIsSigningUp(true);
 
-    if (!validateUsername() || !validatePassword()) return;
+    let isValid = await usernameIsValid();
+    isValid = isValid && passwordIsValid();
+    if (!isValid) return;
 
     createUserWithEmailAndPassword(auth, email, password)
       .then(async (userCredential) => {
         // Logou
-        //TODO: crirar usuario no banco de dados firestore
-        navigate("/");
+        createUser({
+          uid: userCredential.user.uid,
+          username: username,
+          email: email,
+          password: password,
+          channels: [],
+        })
+          .then(() => {
+            navigate("/");
+          })
+          .catch(async (error) => {
+            await userCredential.user.delete();
+            setErrorStates(getErrorMessage(error.code));
+          });
       })
       .catch((error) => {
-        //const errorCode = error.code;
-        //const errorMessage = error.message;
-
-        setIsSigningUp(false);
-        setErrorMessage(getErrorMessage(error.code));
+        setErrorStates(getErrorMessage(error.code));
       });
   };
 
