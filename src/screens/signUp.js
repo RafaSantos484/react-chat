@@ -9,19 +9,16 @@ import {
 } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import { useEffect, useState } from "react";
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { useAuthState } from "react-firebase-hooks/auth";
 
 import styles from "../assets/style/singUp.module.css";
 import logo from "../assets/img/logo.png";
 import { useNavigate } from "react-router-dom";
-import { createUser, userExists } from "../database";
+import { auth, createUser, userExists } from "../firebase";
 
 function SingnUp() {
-  const [isRetrievingUser, setIsRetrievingUser] = useState(true);
-  const auth = getAuth();
-  auth.onAuthStateChanged(() => {
-    setIsRetrievingUser(false);
-  });
+  const navigate = useNavigate();
+  const [user, loading] = useAuthState(auth);
 
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -35,7 +32,6 @@ function SingnUp() {
 
   const imgDimension = "8.5rem";
   const timeout = 800;
-  const navigate = useNavigate();
 
   function getErrorMessage(errorCode) {
     console.log(errorCode);
@@ -81,28 +77,16 @@ function SingnUp() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSigningUp(true);
+    if (!(await usernameIsValid()) || !passwordIsValid()) return;
 
-    let isValid = await usernameIsValid();
-    isValid = isValid && passwordIsValid();
-    if (!isValid) return;
-
-    createUserWithEmailAndPassword(auth, email, password)
-      .then(async (userCredential) => {
-        // Logou
-        createUser({
-          uid: userCredential.user.uid,
-          username: username,
-          email: email,
-          password: password,
-          channels: [],
-        })
-          .then(() => {
-            navigate("/");
-          })
-          .catch(async (error) => {
-            await userCredential.user.delete();
-            setErrorStates(getErrorMessage(error.code));
-          });
+    createUser({
+      username: username,
+      email: email,
+      password: password,
+      channels: [],
+    })
+      .then(() => {
+        navigate("/");
       })
       .catch((error) => {
         setErrorStates(getErrorMessage(error.code));
@@ -110,19 +94,17 @@ function SingnUp() {
   };
 
   useEffect(() => {
+    if (loading) return;
     document.title = "Cadastro";
-    if (isRetrievingUser) return;
-
-    if (auth.currentUser) {
+    if (user) {
       navigate("/");
-      return;
+    } else {
+      setTimeout(() => setFormSlide(true), 300);
+      setTimeout(() => setImgSlide(true), 700);
     }
-
-    setTimeout(() => setFormSlide(true), 300);
-    setTimeout(() => setImgSlide(true), 700);
   });
 
-  if (isRetrievingUser) return <></>;
+  //if (loading) return <></>;
   return (
     <div className={styles.container}>
       <Collapse

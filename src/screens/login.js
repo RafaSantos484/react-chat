@@ -1,46 +1,100 @@
-import { Button, Slide, TextField } from "@mui/material";
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  Collapse,
+  IconButton,
+  Slide,
+  TextField,
+} from "@mui/material";
 import { useEffect, useState } from "react";
-import { getAuth } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
 
 import styles from "../assets/style/login.module.css";
 import { useNavigate } from "react-router-dom";
-
-function handleSubmit() {
-  alert("enviou form");
-}
+import { Close } from "@mui/icons-material";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { auth } from "../firebase";
 
 function Login() {
-  const [isRetrievingUser, setIsRetrievingUser] = useState(true);
   const navigate = useNavigate();
-  const auth = getAuth();
-  auth.onAuthStateChanged(() => {
-    setIsRetrievingUser(false);
-  });
+  const [user, loading] = useAuthState(auth);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const [sloganSlide, setSloganSlide] = useState(false);
   const [formSlide, setFormSlide] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const timeout = 800;
 
-  useEffect(() => {
-    document.title = "Login";
-    if (isRetrievingUser) return;
-
-    if (auth.currentUser) {
-      navigate("/");
-      return;
+  function getErrorMessage(errorCode) {
+    console.log(errorCode);
+    switch (errorCode) {
+      case "auth/user-not-found":
+      case "auth/wrong-password":
+        return "Email ou senha incorreto";
+      default:
+        return "Houve um erro ao tentar se registrar. Tente novamente mais tarde";
     }
+  }
 
-    setTimeout(() => setSloganSlide(true), 300);
-    setTimeout(() => setFormSlide(true), 700);
+  function setErrorStates(errorMessage) {
+    setIsSigningIn(false);
+    setErrorMessage(errorMessage);
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setIsSigningIn(true);
+
+    signInWithEmailAndPassword(auth, email, password)
+      .then(() => {
+        navigate("/");
+      })
+      .catch((error) => {
+        setErrorStates(getErrorMessage(error.code));
+      });
+  };
+
+  useEffect(() => {
+    if (loading) return;
+    document.title = "Login";
+    if (user) {
+      navigate("/");
+    } else {
+      setTimeout(() => setSloganSlide(true), 300);
+      setTimeout(() => setFormSlide(true), 700);
+    }
   });
 
-  if (isRetrievingUser) return <></>;
+  //if (loading) return <></>;
   return (
     <div className={styles.container}>
+      <Collapse
+        style={{ position: "absolute", top: "5%" }}
+        in={errorMessage !== ""}
+      >
+        <Alert
+          severity="error"
+          action={
+            <IconButton
+              aria-label="Fechar"
+              color="error"
+              size="small"
+              onClick={() => {
+                setErrorMessage("");
+              }}
+            >
+              <Close />
+            </IconButton>
+          }
+        >
+          {errorMessage}
+        </Alert>
+      </Collapse>
       <Slide direction="right" in={formSlide} timeout={timeout}>
         <div className={styles.formContainer}>
           <div style={{ margin: "2rem" }}>
@@ -48,7 +102,10 @@ function Login() {
             <p style={{ marginTop: "-0.3rem" }}>
               Não possui conta ? <a href="/cadastro">crie uma agora!</a>
             </p>
-            <form onSubmit={handleSubmit} className={styles.form}>
+            <form
+              onSubmit={async (event) => await handleSubmit(event)}
+              className={styles.form}
+            >
               <TextField
                 label="Email"
                 variant="outlined"
@@ -70,9 +127,19 @@ function Login() {
               <Button
                 variant="contained"
                 type="submit"
+                disabled={isSigningIn}
                 style={{ backgroundColor: "gray", marginTop: "1rem" }}
               >
                 Login
+                {isSigningIn && (
+                  <CircularProgress
+                    size="2rem"
+                    sx={{
+                      color: "yellow",
+                      position: "absolute",
+                    }}
+                  />
+                )}
               </Button>
             </form>
             <Button
