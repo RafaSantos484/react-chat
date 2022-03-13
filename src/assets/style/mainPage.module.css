@@ -1,0 +1,41 @@
+.container {
+  display: flex;
+  align-items: center;
+  height: 97vh;
+  /*background-image: url("../img/containerBG.svg");
+  background-size: cover;*/
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.loadingContainer {
+  display: flex;
+  height: 97vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.leftBar {
+  display: flex;
+  flex-direction: column;
+  background-color: wheat;
+  height: 100%;
+  width: 20%;
+}
+
+.iconsContainer {
+  display: flex;
+  flex-grow: 1;
+  flex-direction: row-reverse;
+  margin-right: 1rem;
+}
+
+.channelContainer {
+  display: flex;
+  background-image: url("../img/containerBG.svg");
+  background-size: cover;
+  height: 100%;
+  flex-grow: 1;
+  align-items: center;
+  justify-content: center;
+}

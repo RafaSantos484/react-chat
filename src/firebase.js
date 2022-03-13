@@ -44,13 +44,22 @@ async function createUser(userObj) {
 }
 
 async function userExists(username) {
-  const q = query(
-    collection(db, "users"),
-    where("username", "==", username)
-  );
+  const q = query(collection(db, "users"), where("username", "==", username));
   const querySnapshot = await getDocs(q);
 
   return !querySnapshot.empty;
 }
 
-export { app, auth, db, createUser, userExists };
+async function getUserDoc(user) {
+  try {
+    const q = query(collection(db, "users"), where("uid", "==", user.uid));
+    const doc = await getDocs(q);
+    const data = doc.docs[0].data();
+
+    return data;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export { app, auth, db, createUser, userExists, getUserDoc };
